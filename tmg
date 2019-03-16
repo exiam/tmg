@@ -1,0 +1,71 @@
+#!/bin/bash
+ACTION=$1
+shift
+
+read YEAR MONTH DAY <<< $(date +'%Y %m %d')
+
+BASE_PATH=~/.tmg
+REPORT_PATH=$BASE_PATH/reports/$YEAR-$MONTH.txt
+LASTRUN_PATH=$BASE_PATH/.lastrun
+
+mkdir -p $BASE_PATH/reports
+
+touch $LASTRUN_PATH
+touch $REPORT_PATH
+
+for arg in "$@"
+do
+    case "$arg" in
+        -t=*|--time=*)
+            OPTION_TIME="${arg#*=}"
+            shift
+        ;;
+        -d|--diff)
+            TIME_DIFF=true
+            shift
+        ;;
+        *)
+            if [ -z ${VALUE+x} ]; then
+                VALUE=$arg
+            else
+                echo "tmg: 1: Invalid argument"
+                exit 1
+            fi
+        ;;
+    esac
+done
+
+if [[ "$ACTION" =~ ^(start|stop)$ ]]; then
+    TIME=$(date +'%H %M')
+
+    if [ -n "${OPTION_TIME+1}" ]; then
+        TIME=$(date -d "$OPTION_TIME" +'%H %M')
+    fi
+
+    read HOUR MINUTE <<< $TIME
+
+    LINE="$YEAR-$MONTH-$DAY@$HOUR:$MINUTE -> $VALUE ($ACTION)"
+
+    if [ -n "${TIME_DIFF+1}" ]; then
+        LASTRUN=$(<$LASTRUN_PATH)
+        CURRENT_TIME=$(date +%s)
+
+        DIFF=$(($CURRENT_TIME - $LASTRUN))
+
+        printf -v HOUR_DIFF "%02d" $(($DIFF / 3600))
+        printf -v MIN_DIFF "%02d" $(($DIFF / 60))
+
+        LINE="$LINE [${HOUR_DIFF}:${MIN_DIFF}]"
+    fi
+    
+    echo "$LINE"
+    echo "$LINE" >> $REPORT_PATH
+
+    echo $(date +%s) > $LASTRUN_PATH
+elif [[ "$ACTION" =~ ^clear$ ]]; then
+    > $REPORT_PATH
+    echo "$YEAR-$MONTH.txt: Report cleared"
+elif [[ "$ACTION" = "view" ]]; then
+    echo "$REPORT_PATH"
+    echo "$(<$REPORT_PATH)"
+fi
