@@ -8,7 +8,6 @@ For example:
 
 ```
 # Content of 2019-03.txt report
-
 2019-03-16@15:45 -> project:add_mailer (start)
 2019-03-16@16:00 -> project:add_mailer (stop)
 ```
