@@ -5,6 +5,8 @@ use chrono::prelude::*;
 use std::fs::{ File, OpenOptions };
 use std::io::prelude::*;
 use termion::{ color, style };
+use regex::Regex;
+use std::collections::HashMap;
 
 fn main() {
     let mut args: Vec<String> = env::args().collect();
@@ -32,17 +34,29 @@ fn write_command(action: String, options: Vec<String>) {
         panic!("Missing value argument");
     }
 
-    let value: String = options[0].clone();
+    let (value, command_options) = parse_command_arguments(&options);
 
-    // Get current date
-    let local: DateTime<Local> = Local::now();
+    let date: DateTime<Local>;
+
+    if command_options.contains_key("at") {
+        let time = NaiveTime::parse_from_str(
+            command_options.get("at").unwrap(),
+            "%H:%M"
+        ).expect("Cannot parse time");
+
+        let naive_date = NaiveDateTime::new(Local::today().naive_utc(), time);
+        date = Local.from_local_datetime(&naive_date).unwrap();
+    } else {
+        date = Local::now();
+    }
+
     let (
         year, 
         month, 
         day,
         hour,
         minute
-    ) = (local.year(), local.month(), local.day(), local.hour(), local.minute());
+    ) = (date.year(), date.month(), date.day(), date.hour(), date.minute());
 
     // Get report file
     let mut report_file = OpenOptions::new()
@@ -121,4 +135,35 @@ fn get_report_path(year: i32, month: u32) -> PathBuf {
     report_path.set_extension("txt");
 
     return report_path;
+}
+
+fn parse_command_arguments(options: &Vec<String>) -> (String, HashMap<String, String>) {
+    let mut command_options = HashMap::new();
+    let mut command_value: Option<String> = None;
+
+    let re = Regex::new(r"--?(\w+)=?([^$\s]*)?").unwrap();
+
+    for option in options {
+        if re.is_match(option) {
+            let cap = re.captures(option).unwrap();
+            command_options.insert(
+                String::from(&cap[1]),
+                String::from(&cap[2]) 
+            );
+
+            continue;
+        }
+
+        if let Some(_value) = command_value {
+            panic!("Too many arguments");
+        }
+
+        command_value = Some(option.to_string());
+    }
+
+    if let None = command_value {
+        panic!("Missing value argument");
+    }
+
+    return (command_value.unwrap(), command_options);
 }
