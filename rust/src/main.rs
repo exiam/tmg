@@ -2,7 +2,7 @@ use std::env;
 use std::path::PathBuf;
 use dirs::home_dir;
 use chrono::prelude::*;
-use std::fs::{ File, OpenOptions };
+use std::fs::{ File, OpenOptions, create_dir_all };
 use std::io::prelude::*;
 use termion::{ color, style };
 use regex::Regex;
@@ -21,6 +21,9 @@ fn main() {
     // Remove command for args, keep only options.
     args.remove(0);
     args.remove(0);
+
+    // Create required folder structure
+    create_dir_all(get_report_folder_path()).expect("Cannot create reports folder");
 
     match command.as_ref() {
         "start" | "stop" => write_command(command, args),
@@ -125,12 +128,21 @@ fn get_app_dir() -> PathBuf {
 }
 
 /**
+ * Return report folder path.
+ */
+fn get_report_folder_path() -> PathBuf {
+    let app_dir: PathBuf = get_app_dir();
+    let mut folder_path: PathBuf = app_dir;
+    folder_path.push("reports");
+
+    return folder_path;
+}
+
+/**
  * Return report path.
  */
 fn get_report_path(year: i32, month: u32) -> PathBuf {
-    let app_dir: PathBuf = get_app_dir();
-    let mut report_path: PathBuf = app_dir;
-    report_path.push("reports");
+    let mut report_path = get_report_folder_path();
     report_path.push(format!("{}-{:0>2}", year, month));
     report_path.set_extension("txt");
 
