@@ -7,28 +7,29 @@ use std::io::prelude::*;
 use termion::{ color, style };
 use regex::Regex;
 use std::collections::HashMap;
+use structopt::StructOpt;
+
+#[derive(StructOpt, Debug)]
+enum Cli {
+    /// Start a task
+    Start {
+        task: String
+    },
+}
 
 fn main() {
-    let mut args: Vec<String> = env::args().collect();
-
-    if args.len() <= 1 {
-        panic!("Not enough arguments");
-    }
-
-    // Handle command arguments
-    let command: String = args[1].clone();
-
-    // Remove command for args, keep only options.
-    args.remove(0);
-    args.remove(0);
+    let args = Cli::from_args();
+    println!("{:?}", args);
 
     // Create required folder structure
     create_dir_all(get_report_folder_path()).expect("Cannot create reports folder");
 
-    match command.as_ref() {
-        "start" | "stop" => write_command(command, args),
-        "view" => view_file_command(),
-        _ => panic!("Invalid command"),
+    match args {
+        Cli::Start { task } => {
+            let mut options = Vec::new();
+            options.push(task);
+            write_command("start".to_string(), options);
+        }
     }
 }
 
@@ -156,7 +157,7 @@ fn parse_command_arguments(options: &Vec<String>) -> (String, HashMap<String, St
     let re = Regex::new(r"--?(\w+)=?([^$\s]*)?").unwrap();
 
     for option in options {
-        if re.is_match(option) {
+        /*if re.is_match(option) {
             let cap = re.captures(option).unwrap();
             command_options.insert(
                 String::from(&cap[1]),
@@ -164,7 +165,7 @@ fn parse_command_arguments(options: &Vec<String>) -> (String, HashMap<String, St
             );
 
             continue;
-        }
+        }*/
 
         if let Some(_value) = command_value {
             panic!("Too many arguments");
