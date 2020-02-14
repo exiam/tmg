@@ -1,50 +1,93 @@
-use std::env;
 use std::path::PathBuf;
 use dirs::home_dir;
 use chrono::prelude::*;
 use std::fs::{ File, OpenOptions, create_dir_all };
 use std::io::prelude::*;
 use termion::{ color, style };
-use regex::Regex;
 use std::collections::HashMap;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
-enum Cli {
+struct Cli {
+    /// Activate debug mode
+    #[structopt(short, long)]
+    debug: bool,
+    /// Subcommand
+    #[structopt(subcommand)]
+    cmd: Command
+}
+
+#[derive(StructOpt, Debug)]
+enum Command {
     /// Start a task
     Start {
-        task: String
+        /// Task name
+        task: String,
+
+        /// Option to apply specific time
+        #[structopt(short, long, parse(try_from_str = parse_time))]
+        at: Option<String>,
     },
+    /// Stop a task
+    Stop {
+        /// Task name
+        task: String,
+
+        /// Option to apply specific time
+        #[structopt(short, long, parse(try_from_str = parse_time))]
+        at: Option<String>,
+
+        /// Activate debug mode
+        #[structopt(short, long)]
+        debug: bool
+    },
+    View
 }
 
 fn main() {
     let args = Cli::from_args();
-    println!("{:?}", args);
+
+    if args.debug {
+        println!("{:?}", args);
+    }
 
     // Create required folder structure
     create_dir_all(get_report_folder_path()).expect("Cannot create reports folder");
 
-    match args {
-        Cli::Start { task } => {
-            let mut options = Vec::new();
-            options.push(task);
-            write_command("start".to_string(), options);
+    let mut command_options = HashMap::new();
+
+    match args.cmd {
+        Command::Start { task, at, .. } => {
+            if let Some(_) = at {
+                command_options.insert(String::from("at"), at.unwrap());
+            }
+            write_command(String::from("start"), task, command_options);
+        },
+        Command::Stop { task, at, .. } => {
+            if let Some(_) = at {
+                command_options.insert(String::from("at"), at.unwrap());
+            }
+            write_command(String::from("stop"), task, command_options);
+        },
+        Command::View => {
+            view_file_command();
         }
     }
 }
 
-fn write_command(action: String, options: Vec<String>) {
-    if options.len() < 1 {
-        panic!("Missing value argument");
+fn parse_time(value: &str) -> Result<String, &str> {
+    match NaiveTime::parse_from_str(value, "%H:%M") {
+        Ok(_) => Ok(String::from(value)),
+        Err(_) => Err("Cannot parse time. Should use format HH:MM.")
     }
+}
 
-    let (value, command_options) = parse_command_arguments(&options);
-
+fn write_command(action: String, task: String, options: HashMap<String, String>) {
     let date: DateTime<Local>;
 
-    if command_options.contains_key("at") {
+    if options.contains_key("at") {
         let time = NaiveTime::parse_from_str(
-            command_options.get("at").unwrap(),
+            options.get("at").unwrap(),
             "%H:%M"
         ).expect("Cannot parse time");
 
@@ -77,7 +120,7 @@ fn write_command(action: String, options: Vec<String>) {
         day,
         hour,
         minute,
-        value,
+        task,
         action
     );
     
@@ -148,35 +191,4 @@ fn get_report_path(year: i32, month: u32) -> PathBuf {
     report_path.set_extension("txt");
 
     return report_path;
-}
-
-fn parse_command_arguments(options: &Vec<String>) -> (String, HashMap<String, String>) {
-    let mut command_options = HashMap::new();
-    let mut command_value: Option<String> = None;
-
-    let re = Regex::new(r"--?(\w+)=?([^$\s]*)?").unwrap();
-
-    for option in options {
-        /*if re.is_match(option) {
-            let cap = re.captures(option).unwrap();
-            command_options.insert(
-                String::from(&cap[1]),
-                String::from(&cap[2]) 
-            );
-
-            continue;
-        }*/
-
-        if let Some(_value) = command_value {
-            panic!("Too many arguments");
-        }
-
-        command_value = Some(option.to_string());
-    }
-
-    if let None = command_value {
-        panic!("Missing value argument");
-    }
-
-    return (command_value.unwrap(), command_options);
 }
