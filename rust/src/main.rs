@@ -41,7 +41,12 @@ enum Command {
         #[structopt(short, long)]
         debug: bool
     },
-    View
+    /// View all tasks
+    View {
+        /// Specific month to display
+        #[structopt(short, long)]
+        at: Option<String>,
+    }
 }
 
 fn main() {
@@ -69,8 +74,8 @@ fn main() {
             }
             write_command(String::from("stop"), task, command_options);
         },
-        Command::View => {
-            view_file_command();
+        Command::View { at } => {
+            view_file_command(at);
         }
     }
 }
@@ -131,8 +136,18 @@ fn write_command(action: String, task: String, options: HashMap<String, String>)
     println!("{}Write:{} {}", color::Fg(color::Green), style::Reset, formatted_string);
 }
 
-fn view_file_command() {
-    let local: DateTime<Local> = Local::now();
+fn view_file_command(at: Option<String>) {
+    let local: Date<Local>;
+
+    if let Some(_) = at {
+        let mut date_string = at.unwrap();
+        date_string.push_str("-01");
+        let naive_date = NaiveDate::parse_from_str(&date_string, "%Y-%m-%d").expect("Cannot parse date");
+        local = Local.from_local_date(&naive_date).unwrap();
+    } else {
+        local = Local::today();
+    }
+
     let (
         year, 
         month
