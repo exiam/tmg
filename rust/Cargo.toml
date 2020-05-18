@@ -7,5 +7,7 @@ edition = "2018"
 [dependencies]
 dirs = "2.0.2"
 chrono = "0.4.7"
-termion = "*"
+tui = "0.9"
+termion = "1.5"
 structopt = "0.3.9"
+rand = "0.7"
